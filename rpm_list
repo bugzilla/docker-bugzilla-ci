@@ -1,0 +1,14 @@
+dbus-x11
+firefox
+httpd-devel
+java-1.7.0-openjdk
+memcached
+mod_perl
+mysql-community-server
+postfix
+python-devel
+python-pip
+python-reportlab
+python-sphinx
+supervisor
+tigervnc-server-minimal
