@@ -9,6 +9,5 @@ postfix
 python-devel
 python-pip
 python-reportlab
-python-sphinx
 supervisor
 tigervnc-server-minimal
