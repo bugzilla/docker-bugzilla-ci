@@ -36,8 +36,14 @@ RUN chmod 644 /etc/my.cnf && \
     chown root.root /etc/my.cnf && \
     rm -rf /etc/mysql && \
     rm -rf /var/lib/mysql/*
-
 RUN /usr/bin/mysql_install_db --user=$BUGZILLA_USER --basedir=/usr --datadir=/var/lib/mysql
+
+# PostgreSQL pre-configuration
+ENV PGDATA /var/lib/pgsql/data
+ENV PGPORT 5432
+RUN su postgres -c "initdb"
+RUN echo "host all all 0.0.0.0/0 trust" >> $PGDATA/pg_hba.conf
+COPY conf/postgresql.conf $PGDATA
 
 # Copy setup and test scripts
 RUN cpanm -l $BUGZILLA_LIB  --quiet --notest Test::WWW::Selenium && rm -rf ~/.cpanm

@@ -30,13 +30,26 @@ if [ "$TEST_SUITE" = "docs" ]; then
 fi
 
 echo -e "\n== Starting database"
-/usr/bin/mysqld_safe &
-sleep 5
+if [ "$BUGS_DB_DRIVER" = "mysql" ]; then
+    /usr/bin/mysqld_safe &
+    sleep 5
+    mysql -u root mysql -e "GRANT ALL PRIVILEGES ON *.* TO bugs@localhost IDENTIFIED BY 'bugs'; FLUSH PRIVILEGES;" || exit 1
+    mysql -u root mysql -e "CREATE DATABASE bugs_test CHARACTER SET = 'utf8';" || exit 1
+    mysql -u root mysql -e "GRANT ALL PRIVILEGES ON bugs_test.* TO bugs@'%' IDENTIFIED BY 'bugs'; FLUSH PRIVILEGES;" || exit 1
+elif [ "$BUGS_DB_DRIVER" = "pg" ]; then
+    su postgres -c "/usr/bin/pg_ctl -D /var/lib/pgsql/data start" || exit 1
+    sleep 5
+    su postgres -c "createuser --superuser bugs" || exit 1
+    su postgres -c "psql -U postgres -d postgres -c \"alter user bugs with password 'bugs';\"" || exit 1
+    su postgres -c "psql -U postgres -d postgres -c \"create database bugs_test owner bugs template template0 encoding 'utf8';\"" || exit 1
+elif [ "$BUGS_DB_DRIVER" = "sqlite" ]; then
+    echo -e "Sqlite DB selected"
+else
+    echo -e "BUGS_DB_DRIVER not set correctly"
+    exit 1
+fi
 
 echo -e "\n== Updating configuration"
-mysql -u root mysql -e "GRANT ALL PRIVILEGES ON *.* TO bugs@localhost IDENTIFIED BY 'bugs'; FLUSH PRIVILEGES;" || exit 1
-mysql -u root mysql -e "CREATE DATABASE bugs_test CHARACTER SET = 'utf8';" || exit 1
-mysql -u root mysql -e "GRANT ALL PRIVILEGES ON bugs_test.* TO bugs@'%' IDENTIFIED BY 'bugs'; FLUSH PRIVILEGES;" || exit 1
 sed -e "s?%DB%?$BUGS_DB_DRIVER?g" --in-place xt/config/checksetup_answers.txt
 echo "\$answer{'memcached_servers'} = 'localhost:11211';" >> xt/config/checksetup_answers.txt
 
