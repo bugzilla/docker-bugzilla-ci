@@ -10,14 +10,13 @@ MAINTAINER David Lawrence <dkl@mozilla.com>
 
 # Environment configuration
 ENV BUGZILLA_USER bugzilla
-ENV BUGZILLA_ROOT /var/www/html/bugzilla
 ENV BUGS_DB_DRIVER mysql
 ENV GITHUB_BASE_GIT https://github.com/bugzilla/bugzilla
 ENV GITHUB_BASE_BRANCH master
 
 # Distribution package installation
 COPY conf/rpm_list /
-RUN yum -y install `cat /rpm_list` && \
+RUN yum -y -q install `cat /rpm_list` && \
     yum clean all
 
 # User configuration

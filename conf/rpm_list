@@ -1,13 +1,9 @@
 dbus-x11
 firefox
-httpd-devel
 java-1.7.0-openjdk
+lynx
 memcached
-mod_perl
 mysql-community-server
 postfix
-python-devel
-python-pip
-python-reportlab
-supervisor
 tigervnc-server-minimal
+xmlto

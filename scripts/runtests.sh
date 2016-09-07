@@ -6,6 +6,8 @@
 # This Source Code Form is "Incompatible With Secondary Licenses", as
 # defined by the Mozilla Public License, v. 2.0.
 
+QA_DIR=xt
+
 if [ -z "$TEST_SUITE" ]; then
     TEST_SUITE=sanity
 fi
@@ -15,17 +17,28 @@ exec > >(tee /tmp/runtests.log) 2>&1
 
 echo "== Retrieving Bugzilla code"
 echo "Checking out $GITHUB_BASE_GIT $GITHUB_BASE_BRANCH ..."
-git clone $GITHUB_BASE_GIT --single-branch --depth 1 --branch $GITHUB_BASE_BRANCH $BUGZILLA_ROOT
-cd $BUGZILLA_ROOT
+git clone $GITHUB_BASE_GIT --single-branch --depth 1 --branch $GITHUB_BASE_BRANCH $BUGZILLA_WWW
+cd $BUGZILLA_WWW
 ln -sf $BUGZILLA_LIB local
 if [ "$GITHUB_BASE_REV" != "" ]; then
     echo "Switching to revision $GITHUB_BASE_REV ..."
     git checkout -q $GITHUB_BASE_REV
 fi
 
+if [ "$GITHUB_BASE_BRANCH" != "master" ]; then
+    echo -e "\n== Checking out QA tests"
+    QA_DIR=qa
+    export PERL5LIB=$BUGZILLA_LIB/lib/perl5
+    git clone https://github.com/bugzilla/qa --single-branch --depth 1 --branch $GITHUB_BASE_BRANCH $QA_DIR
+fi
+
 if [ "$TEST_SUITE" = "docs" ]; then
-    cd $BUGZILLA_ROOT/docs
-    buildbot_step "Documentation" perl makedocs.pl --with-pdf
+    MAKEDOCS_ARGS="--with-pdf"
+    cd $BUGZILLA_WWW/docs
+    if [ "$GITHUB_BASE_BRANCH" = "4.4" ]; then
+        MAKEDOCS_ARGS=""
+    fi
+    buildbot_step "Documentation" perl makedocs.pl $MAKEDOCS_ARGS
     exit $?
 fi
 
@@ -50,12 +63,15 @@ else
 fi
 
 echo -e "\n== Updating configuration"
-sed -e "s?%DB%?$BUGS_DB_DRIVER?g" --in-place xt/config/checksetup_answers.txt
-echo "\$answer{'memcached_servers'} = 'localhost:11211';" >> xt/config/checksetup_answers.txt
+sed -e "s?%DB%?$BUGS_DB_DRIVER?g" --in-place $QA_DIR/config/checksetup_answers.txt
+sed -e "s?%DB_NAME%?bugs_test?g" --in-place $QA_DIR/config/checksetup_answers.txt
+sed -e "s?%USER%?$BUGZILLA_USER?g" --in-place $QA_DIR/config/checksetup_answers.txt
+echo "\$answer{'memcached_servers'} = 'localhost:11211';" >> $QA_DIR/config/checksetup_answers.txt
+echo "\$answer{'apache_size_limit'} = 700000;" >> $QA_DIR/config/checksetup_answers.txt
 
 echo -e "\n== Running checksetup"
-perl checksetup.pl xt/config/checksetup_answers.txt
-perl checksetup.pl xt/config/checksetup_answers.txt
+perl checksetup.pl $QA_DIR/config/checksetup_answers.txt
+perl checksetup.pl $QA_DIR/config/checksetup_answers.txt
 
 if [ "$TEST_SUITE" = "sanity" ]; then
     buildbot_step "Sanity" prove -f -v t/*.t
@@ -63,7 +79,7 @@ if [ "$TEST_SUITE" = "sanity" ]; then
 fi
 
 echo -e "\n== Generating test data"
-cd $BUGZILLA_ROOT/xt/config
+cd $BUGZILLA_WWW/$QA_DIR/config
 perl generate_test_data.pl
 
 echo -e "\n== Starting web server"
@@ -74,7 +90,7 @@ echo -e "\n== Starting memcached"
 /usr/bin/memcached -u memcached -d
 sleep 3
 
-cd $BUGZILLA_ROOT
+cd $BUGZILLA_WWW
 
 if [ "$TEST_SUITE" = "selenium" ]; then
     export DISPLAY=:0
@@ -95,11 +111,26 @@ if [ "$TEST_SUITE" = "selenium" ]; then
     # but no tests actually executed.
     [ $NO_TESTS ] && exit 0
 
-    buildbot_step "Selenium" prove -f -v xt/selenium/*.t
+    if [ "$GITHUB_BASE_BRANCH" = "master" ]; then
+        buildbot_step "Selenium" prove -f -v $QA_DIR/selenium/*.t
+    else
+        cd $BUGZILLA_WWW/$QA_DIR/t
+        buildbot_step "Selenium" prove -f -v test_*.t
+    fi
+
     exit $?
 fi
 
 if [ "$TEST_SUITE" = "webservices" ]; then
-    buildbot_step "Webservices" prove -f -v xt/{rest,webservice}/*.t
+    if [ "$GITHUB_BASE_BRANCH" = "master" ]; then
+        buildbot_step "Webservices" prove -f -v $QA_DIR/{rest,webservice}/*.t
+    else
+        cd $BUGZILLA_WWW/$QA_DIR/t
+        if [ "$GITHUB_BASE_BRANCH" = "5.0" ]; then
+            buildbot_step "Webservices" prove -f -v rest_*.t
+        fi
+        buildbot_step "Webservices" prove -f -v webservice_*.t
+    fi
+
     exit $?
 fi
