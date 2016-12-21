@@ -13,6 +13,7 @@ ENV BUGZILLA_USER bugzilla
 ENV BUGS_DB_DRIVER mysql
 ENV GITHUB_BASE_GIT https://github.com/bugzilla/bugzilla
 ENV GITHUB_BASE_BRANCH master
+ENV PATCH_DIR /patch_dir
 
 # Distribution package installation
 COPY conf/rpm_list /
@@ -50,7 +51,7 @@ COPY scripts/* /usr/local/bin/
 RUN chmod 755 /usr/local/bin/*
 
 # Testing scripts for CI
-ADD https://selenium-release.storage.googleapis.com/2.53/selenium-server-standalone-2.53.0.jar /selenium-server.jar
+ADD https://selenium-release.storage.googleapis.com/2.53/selenium-server-standalone-2.53.1.jar /selenium-server.jar
 
 # Networking
 RUN echo "NETWORKING=yes" > /etc/sysconfig/network

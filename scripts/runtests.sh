@@ -25,6 +25,10 @@ if [ "$GITHUB_BASE_REV" != "" ]; then
     git checkout -q $GITHUB_BASE_REV
 fi
 
+if [ "$TEST_PATCH" != ""  ]; then
+    patch -p1 < $PATCH_DIR/$TEST_PATCH
+fi
+
 if [ "$GITHUB_BASE_BRANCH" != "master" ]; then
     echo -e "\n== Checking out QA tests"
     QA_DIR=qa
